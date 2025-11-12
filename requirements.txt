@@ -1,0 +1,15 @@
+anemoi_inference==0.4.9
+anemoi_models==0.3.1
+anemoi_transform==0.1.18
+anemoi_utils==0.4.38
+cartopy==0.25.0
+earthkit_data==0.17.0
+earthkit_meteo==0.5.0
+earthkit_regrid==0.4.0
+earthkit_utils==0.1.2
+ecmwf_opendata==0.3.24
+matplotlib==3.10.7
+netcdf4==1.7.3
+numpy==2.3.4
+torch==2.4.0
+xarray==2025.10.1
