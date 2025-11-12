@@ -1,4 +1,3 @@
----
 
 # 🌦️ AIFS Weather Forecasting Pipeline
 
@@ -13,7 +12,6 @@ It automates the process of:
 * Saving outputs to NetCDF files
 * (Optional) Visualizing weather fields such as winds and temperature
 
----
 
 ## 🚀 Features
 
@@ -23,7 +21,6 @@ It automates the process of:
 * ✅ Output saving to `.nc` (NetCDF) format
 * ✅ Optional map visualization with Cartopy
 
----
 
 ## 📦 Dependencies
 
@@ -31,7 +28,6 @@ It automates the process of:
 pip install earthkit-data earthkit-regrid xarray matplotlib cartopy anemoi-inference ecmwf-opendata
 ```
 
----
 
 ## ⚙️ Usage
 
@@ -55,7 +51,6 @@ This will:
 3. Run forecasts up to 360 hours ahead
 4. Save results as `.nc` files under `./outputs`
 
----
 
 ## 📊 Example Output
 
@@ -83,7 +78,6 @@ from aifs_pipeline import Visualizer, WeatherState
 Visualizer(config).plot_state(state, save_path="wind_map.png", field_name="10u")
 ```
 
----
 
 ## 📚 Reference
 
@@ -91,11 +85,8 @@ Visualizer(config).plot_state(state, save_path="wind_map.png", field_name="10u")
 * 📦 [Anemoi Inference Library](https://github.com/ecmwf/anemoi-inference)
 * 🌍 [ECMWF Open Data Access](https://www.ecmwf.int/en/forecasts/datasets/open-data)
 
----
 
 ## 📝 License
 
 This project follows the same license as the [ECMWF AIFS model](https://huggingface.co/ecmwf/aifs-single-1.0).
-
----
 
