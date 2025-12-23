@@ -298,14 +298,13 @@ class NetCDFWriter:
         ds_sfc, ds_pl = pickle2netcdf(state)
 
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
-
-        sfc_path = str(save_path)
-        if sfc_path.endswith('.nc'):
-            sfc_path = sfc_path.replace('.nc', '_sfc.nc')
-            pl_path = sfc_path.replace('.nc', '_pl.nc')
+        save_path = str(save_path)
+        if save_path.endswith('.nc'):
+            sfc_path = save_path.replace('.nc', '_sfc.nc')
+            pl_path = save_path.replace('.nc', '_pl.nc')
         else:
-            sfc_path = sfc_path + "_sfc.nc"
-            pl_path = sfc_path + "_pl.nc"
+            sfc_path = save_path + "_sfc.nc"
+            pl_path = save_path + "_pl.nc"
 
         ds_sfc.to_netcdf(sfc_path)
         logger.info(f"Surface state saved to NetCDF: {sfc_path}")
