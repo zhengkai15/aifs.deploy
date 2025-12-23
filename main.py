@@ -287,7 +287,7 @@ class NetCDFWriter:
     
     @staticmethod
     def save_state(
-        state: WeatherState,
+        state,
         save_path: str,
         forecast_hour: int,
         reference_date: Optional[datetime.datetime] = None
@@ -563,44 +563,48 @@ class AIFSPipeline:
     def load_initial_state(self, date: datetime.datetime) -> WeatherState:
         """Load initial weather state from data sources."""
         logger.info(f"Loading initial state for {date}")
-        
-        fields = {}
-        
-        # Fetch surface parameters
-        logger.info("Fetching surface parameters.")
-        sfc_data = self.data_provider.fetch_parameters(
-            date,
-            self.config.surface_params
-        )
-        fields.update(sfc_data)
-        logger.info("Surface parameters fetched.")
+        init_state_file_name = f"/mnt/sdb/aifs/{date}.npy"
+        try:
+            fields = np.load(init_state_file_name, allow_pickle=True).item()
+        except:
+            fields = {}
+            
+            # Fetch surface parameters
+            logger.info("Fetching surface parameters.")
+            sfc_data = self.data_provider.fetch_parameters(
+                date,
+                self.config.surface_params
+            )
+            fields.update(sfc_data)
+            logger.info("Surface parameters fetched.")
 
-        # Fetch and process soil parameters
-        logger.info("Fetching soil parameters.")
-        soil_data = self.data_provider.fetch_parameters(
-            date,
-            self.config.soil_params,
-            self.config.soil_levels
-        )
-        logger.info("Soil parameters fetched; processing soil fields.")
-        self.preprocessor.process_soil_fields(soil_data, fields)
-        
-        # Fetch and process pressure level parameters
-        logger.info("Fetching pressure level parameters.")
-        pl_data = self.data_provider.fetch_parameters(
-            date,
-            self.config.pressure_level_params,
-            self.config.pressure_levels
-        )
-        logger.info("Pressure level parameters fetched; processing pressure level fields.")
-        fields.update(pl_data)
-        self.preprocessor.process_pressure_level_fields(fields)
-        
-        logger.info(f"Loaded {len(fields)} fields")
-        for name, field_data in fields.items():
-            logger.info(f"  {name}: {field_data.shape}")
-        
-        logger.info(f"Returning WeatherState for {date}.")
+            # Fetch and process soil parameters
+            logger.info("Fetching soil parameters.")
+            soil_data = self.data_provider.fetch_parameters(
+                date,
+                self.config.soil_params,
+                self.config.soil_levels
+            )
+            logger.info("Soil parameters fetched; processing soil fields.")
+            self.preprocessor.process_soil_fields(soil_data, fields)
+            
+            # Fetch and process pressure level parameters
+            logger.info("Fetching pressure level parameters.")
+            pl_data = self.data_provider.fetch_parameters(
+                date,
+                self.config.pressure_level_params,
+                self.config.pressure_levels
+            )
+            logger.info("Pressure level parameters fetched; processing pressure level fields.")
+            fields.update(pl_data)
+            self.preprocessor.process_pressure_level_fields(fields)
+            
+            logger.info(f"Loaded {len(fields)} fields")
+            for name, field_data in fields.items():
+                logger.info(f"  {name}: {field_data.shape}")
+            
+            logger.info(f"Returning WeatherState for {date}.")
+            np.save(init_state_file_name, fields, allow_pickle=True)
         return WeatherState(date=date, fields=fields)
     
     def run_forecast(self, initial_state: WeatherState, output_dir: Optional[str] = None) -> None:
@@ -640,7 +644,7 @@ class AIFSPipeline:
             nc_path = str(Path(output_dir) / nc_filename)
             logger.info(f"Saving NetCDF data for hour {forecast_hour} to {nc_path}")
             NetCDFWriter.save_state(
-                WeatherState(**state),
+                state,
                 nc_path,
                 forecast_hour,
                 initial_state.date
