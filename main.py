@@ -50,10 +50,10 @@ class WeatherConfig:
     soil_levels: List[int] = field(default_factory=lambda: [1, 2])
     
     # Model checkpoint
-    checkpoint_path: str = "" # /path/to/aifs-single-mse-1.0.ckpt
+    checkpoint_path: str = "/home/sky/.docker/git/aifs.deploy/aifs-single-mse-1.0.ckpt" # /path/to/aifs-single-mse-1.0.ckpt
     
     # Output paths
-    output_nc_base_path: str = "./" # 
+    output_nc_base_path: str = "/mnt/sdb/aifs" # 
     
     # Forecast settings
     lead_time_hours: int = 360
@@ -295,12 +295,13 @@ class NetCDFWriter:
         """Save weather state to NetCDF file."""
         logger.info(f"Saving state to NetCDF file: {save_path}, forecast_hour: {forecast_hour}, reference_date: {reference_date}")
         # 根据要求分开存储 ds_sfc 和 ds_pl
-        ds_sfc, ds_pl = pickle2netcdf(WeatherState)
+        ds_sfc, ds_pl = pickle2netcdf(state)
 
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
 
         sfc_path = str(save_path)
         if sfc_path.endswith('.nc'):
+            sfc_path = sfc_path.replace('.nc', '_sfc.nc')
             pl_path = sfc_path.replace('.nc', '_pl.nc')
         else:
             sfc_path = sfc_path + "_sfc.nc"
@@ -312,240 +313,240 @@ class NetCDFWriter:
         ds_pl.to_netcdf(pl_path)
         logger.info(f"Pressure level state saved to NetCDF: {pl_path}")
             
-    def pickle2netcdf(self, ds):
-        #print(ds['fields'].keys())
-        
-        def fix(lons):
-            # Shift the longitudes from 0-360 to -180-180
-            return np.where(lons > 180, lons - 360, lons)
+def pickle2netcdf(ds):
+    #print(ds['fields'].keys())
+    
+    def fix(lons):
+        # Shift the longitudes from 0-360 to -180-180
+        return np.where(lons > 180, lons - 360, lons)
 
 
-        #surface_vars = ['sp', 'msl', '10u', '10v', '100u', '100v', '2t', '2d', 'skt', 'tcw', 'cp', 'tp', 'sf', 'tcc', 'hcc', 'lcc', 'mcc']
+    #surface_vars = ['sp', 'msl', '10u', '10v', '100u', '100v', '2t', '2d', 'skt', 'tcw', 'cp', 'tp', 'sf', 'tcc', 'hcc', 'lcc', 'mcc']
 
-        latitudes = np.arange(90,-90.25, -0.25)
-        longitudes = fix(np.arange(0, 360, 0.25))
-        lons, lats = np.meshgrid(longitudes, latitudes)
-
-
-        data = xr.Dataset({'2t':(['lat', 'lon'], ekr.interpolate(ds['fields']['2t'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        '2d':(['lat', 'lon'], ekr.interpolate(ds['fields']['2d'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'sp':(['lat', 'lon'], ekr.interpolate(ds['fields']['sp'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'msl':(['lat', 'lon'], ekr.interpolate(ds['fields']['msl'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        '10u':(['lat', 'lon'], ekr.interpolate(ds['fields']['10u'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        '10v':(['lat', 'lon'], ekr.interpolate(ds['fields']['10v'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        '100u':(['lat', 'lon'], ekr.interpolate(ds['fields']['100u'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        '100v':(['lat', 'lon'], ekr.interpolate(ds['fields']['100v'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'skt':(['lat', 'lon'], ekr.interpolate(ds['fields']['skt'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'tcw':(['lat', 'lon'], ekr.interpolate(ds['fields']['tcw'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'cp':(['lat', 'lon'], ekr.interpolate(ds['fields']['cp'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'tp':(['lat', 'lon'], ekr.interpolate(ds['fields']['tp'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'sf':(['lat', 'lon'], ekr.interpolate(ds['fields']['sf'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'tcc':(['lat', 'lon'], ekr.interpolate(ds['fields']['tcc'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'hcc':(['lat', 'lon'], ekr.interpolate(ds['fields']['hcc'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'lcc':(['lat', 'lon'], ekr.interpolate(ds['fields']['lcc'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'mcc':(['lat', 'lon'], ekr.interpolate(ds['fields']['mcc'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'ssrd':(['lat', 'lon'], ekr.interpolate(ds['fields']['ssrd'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'strd':(['lat', 'lon'], ekr.interpolate(ds['fields']['strd'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'stl1':(['lat', 'lon'], ekr.interpolate(ds['fields']['stl1'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'stl2':(['lat', 'lon'], ekr.interpolate(ds['fields']['stl2'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'swvl1':(['lat', 'lon'], ekr.interpolate(ds['fields']['swvl1'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        'swvl2':(['lat', 'lon'], ekr.interpolate(ds['fields']['swvl2'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
-                        }, 
-                        coords={'lon':np.arange(0, 360, 0.25), 
-                                'lat':np.arange(90,-90.25, -0.25)})
+    latitudes = np.arange(90,-90.25, -0.25)
+    longitudes = fix(np.arange(0, 360, 0.25))
+    lons, lats = np.meshgrid(longitudes, latitudes)
 
 
-        # Set variable attributes
-        data['lon'].attrs['units'] = "degrees_east"
-        data['lat'].attrs['units'] = "degrees_north"
-        data['lon'].attrs['long_name'] = "longitude"
-        data['lat'].attrs['long_name'] = "latitude"
-        data['lon'].attrs['standard_name'] = "longitude"
-        data['lat'].attrs['standard_name'] = "latitude"
-
-        data['sp'].attrs['units'] = "Pa"
-        data['msl'].attrs['units'] = "Pa"
-        data['2t'].attrs['units'] = "K"
-        data['2d'].attrs['units'] = "K"
-        data['skt'].attrs['units'] = "K"
-        data['10u'].attrs['units'] = "m/s"
-        data['10v'].attrs['units'] = "m/s"
-        data['100u'].attrs['units'] = "m/s"
-        data['100v'].attrs['units'] = "m/s"
-        data['tcw'].attrs['units'] = "kg m**-2"
-        data['cp'].attrs['units'] = "m"
-        data['tp'].attrs['units'] = "m"
-        data['sf'].attrs['units'] = "m"
-        data['ssrd'].attrs['units'] = "J m**-2"
-        data['strd'].attrs['units'] = "J m**-2"
-        data['stl1'].attrs['units'] = "K"
-        data['stl2'].attrs['units'] = "K"
-        data['swvl1'].attrs['units'] = "m**3 m**-3"
-        data['swvl2'].attrs['units'] = "m**3 m**-3"
-
-        data['sp'].attrs['long_name'] = "Surface pressure"
-        data['msl'].attrs['long_name'] = "Mean sea level pressure"
-        data['2t'].attrs['long_name'] = "2 metre temperature"
-        data['2d'].attrs['long_name'] = "2 metre dewpoint temperature"
-        data['skt'].attrs['long_name'] = "Skin temperature"
-        data['10u'].attrs['long_name'] = "10 metre U wind component"
-        data['10v'].attrs['long_name'] = "10 metre V wind component"
-        data['100u'].attrs['long_name'] = "100 metre U wind component"
-        data['100v'].attrs['long_name'] = "100 metre V wind component"
-        data['tcw'].attrs['long_name'] = "Total column water"
-        data['cp'].attrs['long_name'] = "Convective precipitation"
-        data['tp'].attrs['long_name'] = "Total precipitation"
-        data['sf'].attrs['long_name'] = "Snowfall"
-        data['tcc'].attrs['long_name'] = "Total cloud cover"
-        data['hcc'].attrs['long_name'] = "High cloud cover"
-        data['lcc'].attrs['long_name'] = "Low cloud cover"
-        data['mcc'].attrs['long_name'] = "Medium cloud cover"
-        data['ssrd'].attrs['long_name'] = "Surface short-wave radiation downwards"
-        data['strd'].attrs['long_name'] = "Surface long-wave radiation downwards"
-        data['stl1'].attrs['long_name'] = "Soil temperature level 1"
-        data['stl2'].attrs['long_name'] = "Soil temperature level 2"
-        data['swvl1'].attrs['long_name'] = "Volumetric soil water layer 1"
-        data['swvl2'].attrs['long_name'] = "Volumetric soil water layer 2"
-
-        # Add Time dimension
-        data.coords['time'] = ds['date']
-        data_sfc = data.expand_dims('time')
-
-        #pressure_vars = ['q', 't', 'u', 'v', 'z']
-
-        pressure_levels = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
-
-        latitudes = np.arange(90,-90.25, -0.25)
-        longitudes = fix(np.arange(0, 360, 0.25))
-        lons, lats = np.meshgrid(longitudes, latitudes)
-
-        q_1000 = ekr.interpolate(ds['fields']['q_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_925 = ekr.interpolate(ds['fields']['q_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_850 = ekr.interpolate(ds['fields']['q_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_700 = ekr.interpolate(ds['fields']['q_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_600 = ekr.interpolate(ds['fields']['q_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_500 = ekr.interpolate(ds['fields']['q_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_400 = ekr.interpolate(ds['fields']['q_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_300 = ekr.interpolate(ds['fields']['q_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_250 = ekr.interpolate(ds['fields']['q_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_200 = ekr.interpolate(ds['fields']['q_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_150 = ekr.interpolate(ds['fields']['q_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_100 = ekr.interpolate(ds['fields']['q_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        q_50 = ekr.interpolate(ds['fields']['q_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-
-        t_1000 = ekr.interpolate(ds['fields']['t_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_925 = ekr.interpolate(ds['fields']['t_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_850 = ekr.interpolate(ds['fields']['t_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_700 = ekr.interpolate(ds['fields']['t_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_600 = ekr.interpolate(ds['fields']['t_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_500 = ekr.interpolate(ds['fields']['t_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_400 = ekr.interpolate(ds['fields']['t_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_300 = ekr.interpolate(ds['fields']['t_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_250 = ekr.interpolate(ds['fields']['t_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_200 = ekr.interpolate(ds['fields']['t_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_150 = ekr.interpolate(ds['fields']['t_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_100 = ekr.interpolate(ds['fields']['t_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        t_50 = ekr.interpolate(ds['fields']['t_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-
-        u_1000 = ekr.interpolate(ds['fields']['u_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_925 = ekr.interpolate(ds['fields']['u_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_850 = ekr.interpolate(ds['fields']['u_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_700 = ekr.interpolate(ds['fields']['u_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_600 = ekr.interpolate(ds['fields']['u_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_500 = ekr.interpolate(ds['fields']['u_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_400 = ekr.interpolate(ds['fields']['u_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_300 = ekr.interpolate(ds['fields']['u_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_250 = ekr.interpolate(ds['fields']['u_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_200 = ekr.interpolate(ds['fields']['u_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_150 = ekr.interpolate(ds['fields']['u_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_100 = ekr.interpolate(ds['fields']['u_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        u_50 = ekr.interpolate(ds['fields']['u_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    data = xr.Dataset({'2t':(['lat', 'lon'], ekr.interpolate(ds['fields']['2t'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    '2d':(['lat', 'lon'], ekr.interpolate(ds['fields']['2d'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'sp':(['lat', 'lon'], ekr.interpolate(ds['fields']['sp'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'msl':(['lat', 'lon'], ekr.interpolate(ds['fields']['msl'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    '10u':(['lat', 'lon'], ekr.interpolate(ds['fields']['10u'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    '10v':(['lat', 'lon'], ekr.interpolate(ds['fields']['10v'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    '100u':(['lat', 'lon'], ekr.interpolate(ds['fields']['100u'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    '100v':(['lat', 'lon'], ekr.interpolate(ds['fields']['100v'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'skt':(['lat', 'lon'], ekr.interpolate(ds['fields']['skt'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'tcw':(['lat', 'lon'], ekr.interpolate(ds['fields']['tcw'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'cp':(['lat', 'lon'], ekr.interpolate(ds['fields']['cp'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'tp':(['lat', 'lon'], ekr.interpolate(ds['fields']['tp'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'sf':(['lat', 'lon'], ekr.interpolate(ds['fields']['sf'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'tcc':(['lat', 'lon'], ekr.interpolate(ds['fields']['tcc'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'hcc':(['lat', 'lon'], ekr.interpolate(ds['fields']['hcc'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'lcc':(['lat', 'lon'], ekr.interpolate(ds['fields']['lcc'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'mcc':(['lat', 'lon'], ekr.interpolate(ds['fields']['mcc'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'ssrd':(['lat', 'lon'], ekr.interpolate(ds['fields']['ssrd'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'strd':(['lat', 'lon'], ekr.interpolate(ds['fields']['strd'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'stl1':(['lat', 'lon'], ekr.interpolate(ds['fields']['stl1'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'stl2':(['lat', 'lon'], ekr.interpolate(ds['fields']['stl2'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'swvl1':(['lat', 'lon'], ekr.interpolate(ds['fields']['swvl1'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    'swvl2':(['lat', 'lon'], ekr.interpolate(ds['fields']['swvl2'], {"grid": "N320"}, {"grid": (0.25, 0.25)})),
+                    }, 
+                    coords={'lon':np.arange(0, 360, 0.25), 
+                            'lat':np.arange(90,-90.25, -0.25)})
 
 
-        v_1000 = ekr.interpolate(ds['fields']['v_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_925 = ekr.interpolate(ds['fields']['v_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_850 = ekr.interpolate(ds['fields']['v_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_700 = ekr.interpolate(ds['fields']['v_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_600 = ekr.interpolate(ds['fields']['v_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_500 = ekr.interpolate(ds['fields']['v_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_400 = ekr.interpolate(ds['fields']['v_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_300 = ekr.interpolate(ds['fields']['v_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_250 = ekr.interpolate(ds['fields']['v_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_200 = ekr.interpolate(ds['fields']['v_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_150 = ekr.interpolate(ds['fields']['v_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_100 = ekr.interpolate(ds['fields']['v_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        v_50 = ekr.interpolate(ds['fields']['v_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    # Set variable attributes
+    data['lon'].attrs['units'] = "degrees_east"
+    data['lat'].attrs['units'] = "degrees_north"
+    data['lon'].attrs['long_name'] = "longitude"
+    data['lat'].attrs['long_name'] = "latitude"
+    data['lon'].attrs['standard_name'] = "longitude"
+    data['lat'].attrs['standard_name'] = "latitude"
+
+    data['sp'].attrs['units'] = "Pa"
+    data['msl'].attrs['units'] = "Pa"
+    data['2t'].attrs['units'] = "K"
+    data['2d'].attrs['units'] = "K"
+    data['skt'].attrs['units'] = "K"
+    data['10u'].attrs['units'] = "m/s"
+    data['10v'].attrs['units'] = "m/s"
+    data['100u'].attrs['units'] = "m/s"
+    data['100v'].attrs['units'] = "m/s"
+    data['tcw'].attrs['units'] = "kg m**-2"
+    data['cp'].attrs['units'] = "m"
+    data['tp'].attrs['units'] = "m"
+    data['sf'].attrs['units'] = "m"
+    data['ssrd'].attrs['units'] = "J m**-2"
+    data['strd'].attrs['units'] = "J m**-2"
+    data['stl1'].attrs['units'] = "K"
+    data['stl2'].attrs['units'] = "K"
+    data['swvl1'].attrs['units'] = "m**3 m**-3"
+    data['swvl2'].attrs['units'] = "m**3 m**-3"
+
+    data['sp'].attrs['long_name'] = "Surface pressure"
+    data['msl'].attrs['long_name'] = "Mean sea level pressure"
+    data['2t'].attrs['long_name'] = "2 metre temperature"
+    data['2d'].attrs['long_name'] = "2 metre dewpoint temperature"
+    data['skt'].attrs['long_name'] = "Skin temperature"
+    data['10u'].attrs['long_name'] = "10 metre U wind component"
+    data['10v'].attrs['long_name'] = "10 metre V wind component"
+    data['100u'].attrs['long_name'] = "100 metre U wind component"
+    data['100v'].attrs['long_name'] = "100 metre V wind component"
+    data['tcw'].attrs['long_name'] = "Total column water"
+    data['cp'].attrs['long_name'] = "Convective precipitation"
+    data['tp'].attrs['long_name'] = "Total precipitation"
+    data['sf'].attrs['long_name'] = "Snowfall"
+    data['tcc'].attrs['long_name'] = "Total cloud cover"
+    data['hcc'].attrs['long_name'] = "High cloud cover"
+    data['lcc'].attrs['long_name'] = "Low cloud cover"
+    data['mcc'].attrs['long_name'] = "Medium cloud cover"
+    data['ssrd'].attrs['long_name'] = "Surface short-wave radiation downwards"
+    data['strd'].attrs['long_name'] = "Surface long-wave radiation downwards"
+    data['stl1'].attrs['long_name'] = "Soil temperature level 1"
+    data['stl2'].attrs['long_name'] = "Soil temperature level 2"
+    data['swvl1'].attrs['long_name'] = "Volumetric soil water layer 1"
+    data['swvl2'].attrs['long_name'] = "Volumetric soil water layer 2"
+
+    # Add Time dimension
+    data.coords['time'] = ds['date']
+    data_sfc = data.expand_dims('time')
+
+    #pressure_vars = ['q', 't', 'u', 'v', 'z']
+
+    pressure_levels = [1000, 925, 850, 700, 600, 500, 400, 300, 250, 200, 150, 100, 50]
+
+    latitudes = np.arange(90,-90.25, -0.25)
+    longitudes = fix(np.arange(0, 360, 0.25))
+    lons, lats = np.meshgrid(longitudes, latitudes)
+
+    q_1000 = ekr.interpolate(ds['fields']['q_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_925 = ekr.interpolate(ds['fields']['q_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_850 = ekr.interpolate(ds['fields']['q_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_700 = ekr.interpolate(ds['fields']['q_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_600 = ekr.interpolate(ds['fields']['q_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_500 = ekr.interpolate(ds['fields']['q_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_400 = ekr.interpolate(ds['fields']['q_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_300 = ekr.interpolate(ds['fields']['q_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_250 = ekr.interpolate(ds['fields']['q_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_200 = ekr.interpolate(ds['fields']['q_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_150 = ekr.interpolate(ds['fields']['q_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_100 = ekr.interpolate(ds['fields']['q_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    q_50 = ekr.interpolate(ds['fields']['q_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+
+    t_1000 = ekr.interpolate(ds['fields']['t_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_925 = ekr.interpolate(ds['fields']['t_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_850 = ekr.interpolate(ds['fields']['t_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_700 = ekr.interpolate(ds['fields']['t_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_600 = ekr.interpolate(ds['fields']['t_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_500 = ekr.interpolate(ds['fields']['t_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_400 = ekr.interpolate(ds['fields']['t_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_300 = ekr.interpolate(ds['fields']['t_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_250 = ekr.interpolate(ds['fields']['t_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_200 = ekr.interpolate(ds['fields']['t_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_150 = ekr.interpolate(ds['fields']['t_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_100 = ekr.interpolate(ds['fields']['t_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    t_50 = ekr.interpolate(ds['fields']['t_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+
+    u_1000 = ekr.interpolate(ds['fields']['u_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_925 = ekr.interpolate(ds['fields']['u_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_850 = ekr.interpolate(ds['fields']['u_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_700 = ekr.interpolate(ds['fields']['u_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_600 = ekr.interpolate(ds['fields']['u_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_500 = ekr.interpolate(ds['fields']['u_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_400 = ekr.interpolate(ds['fields']['u_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_300 = ekr.interpolate(ds['fields']['u_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_250 = ekr.interpolate(ds['fields']['u_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_200 = ekr.interpolate(ds['fields']['u_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_150 = ekr.interpolate(ds['fields']['u_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_100 = ekr.interpolate(ds['fields']['u_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    u_50 = ekr.interpolate(ds['fields']['u_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
 
 
-        z_1000 = ekr.interpolate(ds['fields']['z_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_925 = ekr.interpolate(ds['fields']['z_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_850 = ekr.interpolate(ds['fields']['z_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_700 = ekr.interpolate(ds['fields']['z_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_600 = ekr.interpolate(ds['fields']['z_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_500 = ekr.interpolate(ds['fields']['z_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_400 = ekr.interpolate(ds['fields']['z_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_300 = ekr.interpolate(ds['fields']['z_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_250 = ekr.interpolate(ds['fields']['z_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_200 = ekr.interpolate(ds['fields']['z_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_150 = ekr.interpolate(ds['fields']['z_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_100 = ekr.interpolate(ds['fields']['z_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
-        z_50 = ekr.interpolate(ds['fields']['z_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_1000 = ekr.interpolate(ds['fields']['v_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_925 = ekr.interpolate(ds['fields']['v_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_850 = ekr.interpolate(ds['fields']['v_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_700 = ekr.interpolate(ds['fields']['v_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_600 = ekr.interpolate(ds['fields']['v_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_500 = ekr.interpolate(ds['fields']['v_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_400 = ekr.interpolate(ds['fields']['v_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_300 = ekr.interpolate(ds['fields']['v_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_250 = ekr.interpolate(ds['fields']['v_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_200 = ekr.interpolate(ds['fields']['v_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_150 = ekr.interpolate(ds['fields']['v_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_100 = ekr.interpolate(ds['fields']['v_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    v_50 = ekr.interpolate(ds['fields']['v_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
 
-        data = xr.Dataset({'q':(['level','lat', 'lon'], np.concatenate([q_1000, q_925, q_850, q_700, q_600, q_500, q_400, q_300, 
-                                                                        q_250, q_200, q_150, q_100, q_50], axis=0)),
-                        't':(['level','lat', 'lon'], np.concatenate([t_1000, t_925, t_850, t_700, t_600, t_500, t_400, t_300, 
-                                                                                        t_250, t_200, t_150, t_100, t_50], axis=0)),
-                        'u':(['level','lat', 'lon'], np.concatenate([u_1000, u_925, u_850, u_700, u_600, u_500, u_400, u_300, 
-                                                                                        u_250, u_200, u_150, u_100, u_50], axis=0)),
-                        'v':(['level','lat', 'lon'], np.concatenate([v_1000, v_925, v_850, v_700, v_600, v_500, v_400, v_300, 
-                                                                                        v_250, v_200, v_150, v_100, v_50], axis=0)),
-                        'z':(['level','lat', 'lon'], np.concatenate([z_1000, z_925, z_850, z_700, z_600, z_500, z_400, z_300, 
-                                                                                        z_250, z_200, z_150, z_100, z_50], axis=0)),
-                        }, 
-                        coords={'level':np.array(pressure_levels),
-                                'lon':np.arange(0, 360, 0.25), 
-                                'lat':np.arange(90,-90.25, -0.25)})
 
-        # Set variable attributes
-        data['level'].attrs['units'] = "hPa"
-        data['level'].attrs['standard_name'] = "air_pressure"
-        data['level'].attrs['long_name'] = "pressure"
+    z_1000 = ekr.interpolate(ds['fields']['z_1000'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_925 = ekr.interpolate(ds['fields']['z_925'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_850 = ekr.interpolate(ds['fields']['z_850'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_700 = ekr.interpolate(ds['fields']['z_700'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_600 = ekr.interpolate(ds['fields']['z_600'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_500 = ekr.interpolate(ds['fields']['z_500'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_400 = ekr.interpolate(ds['fields']['z_400'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_300 = ekr.interpolate(ds['fields']['z_300'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_250 = ekr.interpolate(ds['fields']['z_250'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_200 = ekr.interpolate(ds['fields']['z_200'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_150 = ekr.interpolate(ds['fields']['z_150'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_100 = ekr.interpolate(ds['fields']['z_100'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
+    z_50 = ekr.interpolate(ds['fields']['z_50'], {"grid": "N320"}, {"grid": (0.25, 0.25)})[np.newaxis,:,:]
 
-        data['lon'].attrs['units'] = "degrees_east"
-        data['lat'].attrs['units'] = "degrees_north"
-        data['lon'].attrs['long_name'] = "longitude"
-        data['lat'].attrs['long_name'] = "latitude"
-        data['lon'].attrs['standard_name'] = "longitude"
-        data['lat'].attrs['standard_name'] = "latitude"
+    data = xr.Dataset({'q':(['level','lat', 'lon'], np.concatenate([q_1000, q_925, q_850, q_700, q_600, q_500, q_400, q_300, 
+                                                                    q_250, q_200, q_150, q_100, q_50], axis=0)),
+                    't':(['level','lat', 'lon'], np.concatenate([t_1000, t_925, t_850, t_700, t_600, t_500, t_400, t_300, 
+                                                                                    t_250, t_200, t_150, t_100, t_50], axis=0)),
+                    'u':(['level','lat', 'lon'], np.concatenate([u_1000, u_925, u_850, u_700, u_600, u_500, u_400, u_300, 
+                                                                                    u_250, u_200, u_150, u_100, u_50], axis=0)),
+                    'v':(['level','lat', 'lon'], np.concatenate([v_1000, v_925, v_850, v_700, v_600, v_500, v_400, v_300, 
+                                                                                    v_250, v_200, v_150, v_100, v_50], axis=0)),
+                    'z':(['level','lat', 'lon'], np.concatenate([z_1000, z_925, z_850, z_700, z_600, z_500, z_400, z_300, 
+                                                                                    z_250, z_200, z_150, z_100, z_50], axis=0)),
+                    }, 
+                    coords={'level':np.array(pressure_levels),
+                            'lon':np.arange(0, 360, 0.25), 
+                            'lat':np.arange(90,-90.25, -0.25)})
 
-        data['z'].attrs['units'] = "m2/s2"
-        data['q'].attrs['units'] = "kg/kg"
-        data['u'].attrs['units'] = "m/s"
-        data['v'].attrs['units'] = "m/s"
-        data['t'].attrs['units'] = "K"
+    # Set variable attributes
+    data['level'].attrs['units'] = "hPa"
+    data['level'].attrs['standard_name'] = "air_pressure"
+    data['level'].attrs['long_name'] = "pressure"
 
-        data['z'].attrs['long_name'] = "m2/s2"
-        data['q'].attrs['long_name'] = "kg/kg"
-        data['u'].attrs['long_name'] = "m/s"
-        data['v'].attrs['long_name'] = "m/s"
-        data['t'].attrs['long_name'] = "K"
+    data['lon'].attrs['units'] = "degrees_east"
+    data['lat'].attrs['units'] = "degrees_north"
+    data['lon'].attrs['long_name'] = "longitude"
+    data['lat'].attrs['long_name'] = "latitude"
+    data['lon'].attrs['standard_name'] = "longitude"
+    data['lat'].attrs['standard_name'] = "latitude"
 
-        data['z'].attrs['long_name'] = "Geopotential"
-        data['q'].attrs['long_name'] = "Specific humidity"
-        data['u'].attrs['long_name'] = "U component of wind"
-        data['v'].attrs['long_name'] = "V component of wind"
-        data['t'].attrs['long_name'] = "Temperature"
+    data['z'].attrs['units'] = "m2/s2"
+    data['q'].attrs['units'] = "kg/kg"
+    data['u'].attrs['units'] = "m/s"
+    data['v'].attrs['units'] = "m/s"
+    data['t'].attrs['units'] = "K"
 
-        data['z'].attrs['standard_name'] = "geopotential"
-        data['q'].attrs['standard_name'] = "specific humidity"
-        data['u'].attrs['standard_name'] = "eastward_wind"
-        data['v'].attrs['standard_name'] = "northward_wind"
-        data['t'].attrs['standard_name'] = "air_temperature"
+    data['z'].attrs['long_name'] = "m2/s2"
+    data['q'].attrs['long_name'] = "kg/kg"
+    data['u'].attrs['long_name'] = "m/s"
+    data['v'].attrs['long_name'] = "m/s"
+    data['t'].attrs['long_name'] = "K"
 
-        # Add Time dimension
-        data.coords['time'] = ds['date']
-        data_pl = data.expand_dims('time')
-        return data_sfc, data_pl
+    data['z'].attrs['long_name'] = "Geopotential"
+    data['q'].attrs['long_name'] = "Specific humidity"
+    data['u'].attrs['long_name'] = "U component of wind"
+    data['v'].attrs['long_name'] = "V component of wind"
+    data['t'].attrs['long_name'] = "Temperature"
+
+    data['z'].attrs['standard_name'] = "geopotential"
+    data['q'].attrs['standard_name'] = "specific humidity"
+    data['u'].attrs['standard_name'] = "eastward_wind"
+    data['v'].attrs['standard_name'] = "northward_wind"
+    data['t'].attrs['standard_name'] = "air_temperature"
+
+    # Add Time dimension
+    data.coords['time'] = ds['date']
+    data_pl = data.expand_dims('time')
+    return data_sfc, data_pl
 
 
 class AIFSPipeline:
